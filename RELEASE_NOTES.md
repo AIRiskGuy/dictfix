@@ -1,41 +1,42 @@
-# Release Notes — dictfix v1.1.0
+# Release Notes — dictfix v1.2.0
 
 **Release date:** 2026-03-26
 
 ## What's New
 
-### Auto-restart espanso
-Previously, after adding or removing corrections you had to manually run `espanso restart`. Now dictfix handles this automatically — corrections are live the moment you add them.
+### `dictfix doctor` command
 
-### Multi-word phrase support
-Corrections aren't limited to single words. Fix entire phrases that dictation gets wrong:
+New diagnostic command that checks your macOS system settings for optimal dictation accuracy:
 
 ```bash
-dfx add "get hub" "GitHub"
-dfx add "java script" "JavaScript"
+dfx doctor
 ```
 
-### `dfx` shorthand alias
-For faster access, `dfx` is available as a shell alias:
+Checks performed:
+- macOS version (13+ required for on-device dictation)
+- Apple Silicon detection (enables on-device ML processing)
+- Dictation enabled status
+- System locale / language configuration
+- Microphone input volume (flags if below 70%)
+- espanso running status
+- Corrections file and count
+- Accessibility and Input Monitoring permissions for espanso
 
-```bash
-dfx add "gonna" "going to"
-dfx ls
-```
+Each check reports `[OK]`, `[!!]` (issue with fix instructions), or `[..]` (informational). Includes tips for reducing dictation errors at the OS level.
 
-### Project documentation
-- Full README with usage, examples, privacy assessment, and installation instructions
-- MIT license
-- CHANGELOG for tracking changes across versions
+### Improved documentation
+
+- "Improving Dictation Accuracy" section added to README with OS-level tips
+- Removed user-specific paths from CLAUDE.md for public repo compatibility
 
 ## Upgrade
-
-If you already have dictfix installed, pull the latest and the symlink picks up changes automatically:
 
 ```bash
 cd /path/to/dictfix
 git pull
 ```
+
+The symlink picks up changes automatically.
 
 ## Full Changelog
 

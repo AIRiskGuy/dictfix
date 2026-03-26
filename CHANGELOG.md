@@ -5,6 +5,15 @@ All notable changes to dictfix will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-03-26
+
+### Added
+- `doctor` command — checks macOS version, processor, dictation status, microphone volume, espanso status, permissions, and provides actionable fix instructions
+- "Improving Dictation Accuracy" section in README with OS-level tips
+
+### Changed
+- Removed hardcoded user-specific paths from CLAUDE.md (public repo compatibility)
+
 ## [1.1.0] - 2026-03-26
 
 ### Added

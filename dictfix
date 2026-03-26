@@ -24,6 +24,7 @@ USAGE:
     dictfix import <csv_file>           Bulk import from CSV (wrong,correct per line)
     dictfix export [csv_file]           Export to CSV (stdout if no file given)
     dictfix test <text>                 Preview corrections applied to text
+    dictfix doctor                      Check system settings for optimal dictation accuracy
     dictfix help                        Show this help (alias: -h, --help)
 
 EXAMPLES:
@@ -44,6 +45,8 @@ SOURCE:
     https://github.com/crankd/dictfix
 """
 
+import json
+import platform
 import subprocess
 import sys
 import os
@@ -51,7 +54,7 @@ import re
 import csv
 import shutil
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 FIXES_FILE = os.path.expanduser("~/.config/espanso/match/dictation-fixes.yml")
 
@@ -296,6 +299,173 @@ def cmd_test(text):
         print("No corrections matched.")
 
 
+def cmd_doctor():
+    """Check system settings for optimal dictation accuracy."""
+    print("dictfix doctor — checking macOS dictation settings\n")
+    issues = 0
+    ok_count = 0
+
+    # 1. Check macOS version
+    mac_ver = platform.mac_ver()[0]
+    if mac_ver:
+        major = int(mac_ver.split(".")[0])
+        if major >= 15:
+            print(f"  [OK] macOS {mac_ver} (current)")
+            ok_count += 1
+        elif major >= 13:
+            print(f"  [!!] macOS {mac_ver} — consider upgrading for improved dictation accuracy")
+            issues += 1
+        else:
+            print(f"  [!!] macOS {mac_ver} — upgrade recommended (on-device dictation requires 13+)")
+            issues += 1
+    else:
+        print("  [??] Could not detect macOS version")
+
+    # 2. Check Apple Silicon (on-device ML)
+    try:
+        chip = subprocess.run(
+            ["sysctl", "-n", "machdep.cpu.brand_string"],
+            capture_output=True, text=True, timeout=5,
+        ).stdout.strip()
+        if "Apple" in chip:
+            print(f"  [OK] Apple Silicon ({chip}) — on-device dictation ML available")
+            ok_count += 1
+        else:
+            print(f"  [..] Intel processor ({chip}) — on-device dictation may be limited")
+    except Exception:
+        print("  [??] Could not detect processor")
+
+    # 3. Check if dictation is enabled
+    try:
+        dictation_enabled = subprocess.run(
+            ["defaults", "read", "com.apple.HIToolbox", "AppleDictationAutoEnable"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if dictation_enabled.returncode == 0 and dictation_enabled.stdout.strip() == "1":
+            print("  [OK] Dictation is enabled")
+            ok_count += 1
+        else:
+            print("  [!!] Dictation may not be enabled")
+            print("       -> System Settings > Keyboard > Dictation > toggle ON")
+            issues += 1
+    except Exception:
+        print("  [??] Could not check dictation status")
+
+    # 4. Check dictation language
+    try:
+        locale_result = subprocess.run(
+            ["defaults", "read", "-g", "AppleLocale"],
+            capture_output=True, text=True, timeout=5,
+        )
+        locale = locale_result.stdout.strip() if locale_result.returncode == 0 else "unknown"
+        print(f"  [..] System locale: {locale}")
+        print("       -> Verify dictation language matches your spoken language in:")
+        print("          System Settings > Keyboard > Dictation > Language")
+    except Exception:
+        pass
+
+    # 5. Check input microphone volume
+    try:
+        vol_result = subprocess.run(
+            ["osascript", "-e", "input volume of (get volume settings)"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if vol_result.returncode == 0:
+            vol = int(vol_result.stdout.strip())
+            if vol >= 70:
+                print(f"  [OK] Microphone input volume: {vol}%")
+                ok_count += 1
+            elif vol >= 40:
+                print(f"  [!!] Microphone input volume: {vol}% — consider increasing to 70%+")
+                print("       -> System Settings > Sound > Input > Input volume")
+                issues += 1
+            else:
+                print(f"  [!!] Microphone input volume: {vol}% — too low for reliable dictation")
+                print("       -> System Settings > Sound > Input > Input volume")
+                issues += 1
+    except Exception:
+        print("  [??] Could not check microphone volume")
+
+    # 6. Check espanso status
+    espanso = shutil.which("espanso")
+    if espanso:
+        try:
+            status = subprocess.run(
+                [espanso, "status"], capture_output=True, text=True, timeout=5,
+            )
+            if status.returncode == 0 and "running" in status.stdout.lower():
+                print("  [OK] espanso is running")
+                ok_count += 1
+            else:
+                print("  [!!] espanso is not running")
+                print("       -> Run: espanso start")
+                issues += 1
+        except Exception:
+            print("  [??] Could not check espanso status")
+    else:
+        print("  [!!] espanso is not installed")
+        print("       -> Run: brew install espanso")
+        issues += 1
+
+    # 7. Check corrections file
+    if os.path.exists(FIXES_FILE):
+        entries = parse_entries()
+        print(f"  [OK] Corrections file exists ({len(entries)} correction(s))")
+        ok_count += 1
+    else:
+        print("  [..] No corrections file yet — add your first with: dictfix add \"wrong\" \"correct\"")
+
+    # 8. Check Accessibility and Input Monitoring (best-effort via tccutil)
+    tcc_db = os.path.expanduser("~/Library/Application Support/com.apple.TCC/TCC.db")
+    if os.path.exists(tcc_db):
+        try:
+            import sqlite3
+            conn = sqlite3.connect(f"file:{tcc_db}?mode=ro", uri=True)
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT service, auth_value FROM access WHERE client LIKE '%espanso%'"
+            )
+            rows = cursor.fetchall()
+            conn.close()
+            services_granted = {row[0] for row in rows if row[1] == 2}
+            if "kTCCServiceAccessibility" in services_granted:
+                print("  [OK] Accessibility permission granted to espanso")
+                ok_count += 1
+            else:
+                print("  [!!] Accessibility permission may not be granted to espanso")
+                print("       -> System Settings > Privacy & Security > Accessibility")
+                issues += 1
+            if "kTCCServiceListenEvent" in services_granted:
+                print("  [OK] Input Monitoring permission granted to espanso")
+                ok_count += 1
+            else:
+                print("  [!!] Input Monitoring permission may not be granted to espanso")
+                print("       -> System Settings > Privacy & Security > Input Monitoring")
+                issues += 1
+        except Exception:
+            print("  [..] Could not verify espanso permissions (check manually)")
+            print("       -> System Settings > Privacy & Security > Accessibility")
+            print("       -> System Settings > Privacy & Security > Input Monitoring")
+    else:
+        print("  [..] Could not verify espanso permissions (check manually)")
+
+    # Summary
+    print(f"\n{'─' * 50}")
+    if issues == 0:
+        print(f"  All checks passed ({ok_count} OK). System looks good for dictation.")
+    else:
+        print(f"  {ok_count} OK, {issues} issue(s) found.")
+
+    # Tips
+    print(f"\n  Tips for better dictation accuracy:")
+    print(f"  - Use a headset or external mic in noisy environments")
+    print(f"  - Say \"Correct that\" immediately after an error to see alternatives")
+    print(f"  - Toggle dictation off/on in System Settings to reset the service")
+    print(f"  - Keep macOS updated for the latest speech recognition improvements")
+    print(f"  - Re-enable Enhanced Dictation if accuracy degrades over time")
+    print(f"    System Settings > Keyboard > Dictation > toggle OFF then ON")
+
+
 def cmd_help():
     """Print help information."""
     print(__doc__.strip())
@@ -345,6 +515,9 @@ def main():
             print('Usage: dictfix test <text>')
             sys.exit(1)
         cmd_test(" ".join(sys.argv[2:]))
+
+    elif command == "doctor":
+        cmd_doctor()
 
     elif command in ("help", "--help", "-h"):
         cmd_help()

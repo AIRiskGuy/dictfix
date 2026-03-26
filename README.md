@@ -4,7 +4,7 @@ CLI tool for managing macOS dictation (speech-to-text) corrections, powered by [
 
 ## Problem
 
-macOS dictation frequently transcribes words incorrectly — especially with accents, technical vocabulary, or brand names. Built-in Text Replacements don't work reliably in Terminal or VS Code because the correction event fires too late. dictfix solves this by managing an [espanso](https://espanso.org) correction list that replaces misheard words the instant they appear, in any app.
+macOS dictation frequently transcribes words incorrectly — especially with regional accents, technical vocabulary, or brand names. Built-in Text Replacements don't work reliably in Terminal or VS Code because the correction event fires too late. `dictfix`, a CLI tool, solves this by managing an [espanso](https://espanso.org) correction list that replaces misunderstood words and phrases the instant they appear, in any app on the system.
 
 ## Usage
 
@@ -16,6 +16,7 @@ dictfix search <term>               # Search corrections (alias: find)
 dictfix import <csv_file>           # Bulk import from CSV (wrong,correct per line)
 dictfix export [csv_file]           # Export to CSV (stdout if no file given)
 dictfix test <text>                 # Preview corrections applied to text
+dictfix doctor                      # Check system settings for optimal dictation accuracy
 dictfix help                        # Show full help (alias: -h, --help)
 dictfix --version                   # Show version
 ```
@@ -31,9 +32,9 @@ alias dfx='dictfix'
 Then use `dfx` anywhere you would use `dictfix`:
 
 ```bash
-dfx add "Contant" "content"
+dfx add "wanna" "want to"
 dfx ls
-dfx rm "Contant"
+dfx rm "wanna"
 ```
 
 ## Examples
@@ -41,15 +42,30 @@ dfx rm "Contant"
 ### Single-word corrections
 
 ```bash
-dfx add "Contant" "content"         # Accent-related misrecognition
-dfx add "Contants" "contents"
-dfx add "gonna" "going to"          # Informal speech cleanup
+# Accent-related misrecognition
+dfx add "contant" "content" # word misrecognition
+dfx add "tronno" "Toronto" # voiced alveolar flap
+dfx add "chrono" "Toronto" # voiced alveolar flap
+dfx add "warshington" "washington" # City name misrecognition
+dfx add "wadder" "water" # word misrecognition
+
+# Informal speech cleanup
+dfx add "gonna" "going to"
 dfx add "wanna" "want to"
 dfx add "gotta" "got to"
 dfx add "kinda" "kind of"
 dfx add "shoulda" "should have"
 dfx add "coulda" "could have"
 dfx add "woulda" "would have"
+
+# Brand name misrecognition
+dfx add "cloud" "claude"
+dfx add "get hub" "GitHub"
+dfx add "get her" "GitHub"
+dfx add "java script" "JavaScript"
+dfx add "type script" "TypeScript"
+dfx add "post gress" "Postgres"
+dfx add "dock her" "Docker"
 ```
 
 ### Multi-word / phrase corrections
@@ -96,6 +112,7 @@ brew install espanso
 ```
 
 Grant macOS permissions when prompted:
+
 - **System Settings > Privacy & Security > Accessibility** — enable Espanso
 - **System Settings > Privacy & Security > Input Monitoring** — enable Espanso
 
@@ -108,6 +125,26 @@ cd dictfix
 ```
 
 This symlinks the `dictfix` script to `~/bin/dictfix`. Ensure `~/bin` is in your `PATH`.
+
+## Improving Dictation Accuracy
+
+Run `dictfix doctor` to check your system settings:
+
+```bash
+dfx doctor
+```
+
+This checks macOS version, processor type, dictation status, microphone input volume, espanso status, permissions, and correction count. It flags issues and provides fix instructions.
+
+### Tips Beyond dictfix
+
+dictfix corrects errors *after* they happen. To reduce errors at the source:
+
+- **Microphone**: Ensure input volume is 70%+ in System Settings > Sound > Input. Use a headset in noisy or echoey environments.
+- **"Correct that"**: Say "Correct that" immediately after a misrecognized word to see alternatives. Select the correct option by number.
+- **Enhanced Dictation**: On Apple Silicon Macs, on-device processing provides better accuracy. Toggle dictation off and back on in System Settings > Keyboard > Dictation to reset the service.
+- **Language settings**: Verify dictation language matches the language you are speaking in System Settings > Keyboard > Dictation > Language.
+- **Keep macOS updated**: Apple regularly improves the speech recognition model. Specific phonetic bugs (e.g., words with 'R') are often fixed in point releases.
 
 ## Dependencies
 
