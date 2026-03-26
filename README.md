@@ -266,6 +266,79 @@ File an issue at [github.com/crankd/dictfix/issues](https://github.com/crankd/di
 - macOS version (`sw_vers`)
 - Description of the problem and steps to reproduce
 
+## Contributing
+
+Contributions are welcome! Here's the process:
+
+### Getting started
+
+1. Fork the repo on GitHub
+2. Clone your fork locally:
+   ```bash
+   git clone https://github.com/<your-username>/dictfix.git
+   cd dictfix
+   ```
+3. Create a feature branch from `dev`:
+   ```bash
+   git checkout dev
+   git checkout -b feat/your-feature-name
+   ```
+
+### Development workflow
+
+- **All work happens on feature branches off `dev`** — never commit directly to `main`
+- `main` is the release branch (published, tagged)
+- `dev` is the integration branch (merged to `main` at release time)
+- dictfix is a single Python script with **zero external dependencies** — keep it that way
+- Run `./install.sh` to symlink your local copy to `~/bin/dictfix` for testing
+
+### Submitting changes
+
+1. Test your changes locally:
+   ```bash
+   dictfix doctor          # verify setup
+   dictfix add "test" "ok" # test mutations
+   dictfix ls              # verify
+   dictfix rm "test"       # clean up
+   ```
+2. Commit with a clear message describing the "why":
+   ```bash
+   git commit -m "Add support for regex triggers
+
+   Allows users to define pattern-based corrections for common
+   dictation errors that vary slightly each time."
+   ```
+3. Push your branch and open a PR against `dev`:
+   ```bash
+   git push origin feat/your-feature-name
+   gh pr create --base dev
+   ```
+
+### PR guidelines
+
+- Keep PRs focused — one feature or fix per PR
+- Update `CHANGELOG.md` under an `[Unreleased]` section
+- Update `README.md` if you add a new command or change behavior
+- No external Python dependencies (stdlib only)
+- Personal correction data (`.yml`, `.csv`) must never be committed
+
+### Reporting bugs
+
+File an issue at [github.com/crankd/dictfix/issues](https://github.com/crankd/dictfix/issues) with:
+
+- Output of `dictfix doctor`
+- Output of `dictfix --version`
+- macOS version (`sw_vers`)
+- Steps to reproduce
+
+### Ideas for contributions
+
+- Linux support (espanso is cross-platform, dictfix currently assumes macOS)
+- Tab completion for zsh/bash
+- `dictfix undo` to revert the last add/remove
+- Regex-based trigger patterns
+- Community-maintained correction packs (e.g., medical terms, legal terms)
+
 ## License
 
 [MIT](LICENSE)

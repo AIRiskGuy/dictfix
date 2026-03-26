@@ -5,6 +5,11 @@ All notable changes to dictfix will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-03-26
+
+### Added
+- Contributing section in README with development workflow, PR guidelines, and ideas for contributions
+
 ## [1.3.1] - 2026-03-26
 
 ### Added
