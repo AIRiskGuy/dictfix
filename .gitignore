@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Personal dictation data — never commit
+# The corrections YAML contains personal speech patterns and vocabulary
+dictation-fixes.yml
+corrections.csv
+*.csv
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

@@ -1,0 +1,362 @@
+#!/usr/bin/env python3
+"""
+dictfix — CLI for managing macOS dictation/speech-to-text corrections.
+
+PURPOSE:
+    macOS speech-to-text (dictation) often transcribes words incorrectly,
+    especially with accents or technical vocabulary. dictfix manages a
+    correction list powered by espanso (a local, open-source text expander)
+    so that misheard words are automatically replaced the instant they
+    appear — in any app, including Terminal and VS Code.
+
+    Corrections are stored in ~/.config/espanso/match/dictation-fixes.yml
+    and espanso is automatically restarted when corrections change.
+
+PREREQUISITES:
+    brew install espanso
+    # Grant Accessibility + Input Monitoring permissions in System Settings
+
+USAGE:
+    dictfix add <wrong> <correct>       Add or update a correction
+    dictfix remove <wrong>              Remove a correction (alias: rm)
+    dictfix list                        List all corrections (alias: ls)
+    dictfix search <term>               Search corrections (alias: find)
+    dictfix import <csv_file>           Bulk import from CSV (wrong,correct per line)
+    dictfix export [csv_file]           Export to CSV (stdout if no file given)
+    dictfix test <text>                 Preview corrections applied to text
+    dictfix help                        Show this help (alias: -h, --help)
+
+EXAMPLES:
+    dictfix add "Contant" "content"     # Fix a persistent dictation error
+    dictfix add "Vendable" "vendable"   # Fix capitalization of a brand name
+    dictfix rm "Contant"                # Remove a correction
+    dictfix ls                          # Show all active corrections
+    dictfix find "cont"                 # Search by partial match
+    dictfix test "The Contant is ready" # Dry-run: see what would change
+    dictfix import ~/fixes.csv          # Bulk load from CSV
+    dfx add "gonna" "going to"          # dfx is a shell alias for dictfix
+
+DATA:
+    Corrections file : ~/.config/espanso/match/dictation-fixes.yml
+    Espanso config   : ~/.config/espanso/config/default.yml
+
+SOURCE:
+    https://github.com/crankd/dictfix
+"""
+
+import subprocess
+import sys
+import os
+import re
+import csv
+import shutil
+
+VERSION = "1.0.0"
+
+FIXES_FILE = os.path.expanduser("~/.config/espanso/match/dictation-fixes.yml")
+
+HEADER = """# Dictation Fixes — Speech-to-text corrections
+# Managed by: dictfix CLI — https://github.com/crankd/dictfix
+#
+# Each entry corrects a known dictation error.
+# - trigger: the wrong word that dictation produces
+# - replace: the correct word you intended
+# - word: true ensures only whole words are matched
+# - propagate_case: true preserves capitalization
+#
+# To add new corrections:
+#   dictfix add "wrong" "correct"
+#   dfx add "wrong" "correct"
+
+matches:
+"""
+
+ENTRY_TEMPLATE = """  - trigger: "{trigger}"
+    replace: "{replace}"
+    propagate_case: true
+    word: true
+"""
+
+
+def parse_entries():
+    """Parse existing corrections from the YAML file."""
+    entries = []
+    if not os.path.exists(FIXES_FILE):
+        return entries
+
+    with open(FIXES_FILE, "r") as f:
+        content = f.read()
+
+    trigger_pattern = re.compile(r'- trigger:\s*"([^"]+)"')
+    replace_pattern = re.compile(r'replace:\s*"([^"]+)"')
+
+    triggers = trigger_pattern.findall(content)
+    replaces = replace_pattern.findall(content)
+
+    for t, r in zip(triggers, replaces):
+        entries.append({"trigger": t, "replace": r})
+
+    return entries
+
+
+def write_entries(entries):
+    """Write all corrections to the YAML file."""
+    content = HEADER
+    for entry in sorted(entries, key=lambda e: e["trigger"].lower()):
+        content += ENTRY_TEMPLATE.format(
+            trigger=entry["trigger"], replace=entry["replace"]
+        )
+
+    os.makedirs(os.path.dirname(FIXES_FILE), exist_ok=True)
+    with open(FIXES_FILE, "w") as f:
+        f.write(content)
+
+
+def restart_espanso():
+    """Restart espanso to apply changes. Silent if espanso is not running."""
+    espanso = shutil.which("espanso")
+    if not espanso:
+        print("  (espanso not found — install with: brew install espanso)")
+        return
+
+    try:
+        result = subprocess.run(
+            [espanso, "restart"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            print("  espanso restarted — corrections are live.")
+        else:
+            # espanso may not be running yet
+            subprocess.run(
+                [espanso, "start"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            print("  espanso started — corrections are live.")
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        print("  (could not restart espanso — try: espanso restart)")
+
+
+def cmd_add(wrong, correct):
+    """Add a new dictation correction."""
+    entries = parse_entries()
+
+    for entry in entries:
+        if entry["trigger"].lower() == wrong.lower():
+            old_replace = entry["replace"]
+            entry["replace"] = correct
+            write_entries(entries)
+            print(f'Updated: "{wrong}" -> "{correct}" (was "{old_replace}")')
+            restart_espanso()
+            return
+
+    entries.append({"trigger": wrong, "replace": correct})
+    write_entries(entries)
+    print(f'Added: "{wrong}" -> "{correct}"')
+    print(f"Total corrections: {len(entries)}")
+    restart_espanso()
+
+
+def cmd_remove(wrong):
+    """Remove a dictation correction."""
+    entries = parse_entries()
+    original_count = len(entries)
+    entries = [e for e in entries if e["trigger"].lower() != wrong.lower()]
+
+    if len(entries) == original_count:
+        print(f'Not found: "{wrong}"')
+        sys.exit(1)
+
+    write_entries(entries)
+    print(f'Removed: "{wrong}"')
+    print(f"Total corrections: {len(entries)}")
+    restart_espanso()
+
+
+def cmd_list():
+    """List all corrections."""
+    entries = parse_entries()
+    if not entries:
+        print("No corrections configured yet.")
+        print('Add one with: dictfix add "wrong" "correct"')
+        return
+
+    max_trigger = max(len(e["trigger"]) for e in entries)
+    max_replace = max(len(e["replace"]) for e in entries)
+
+    print(f"{'DICTATED':<{max_trigger + 2}} {'CORRECTED':<{max_replace + 2}}")
+    print(f"{'─' * (max_trigger + 2)} {'─' * (max_replace + 2)}")
+    for entry in sorted(entries, key=lambda e: e["trigger"].lower()):
+        print(
+            f"{entry['trigger']:<{max_trigger + 2}} {entry['replace']:<{max_replace + 2}}"
+        )
+    print(f"\nTotal: {len(entries)} correction(s)")
+
+
+def cmd_search(term):
+    """Search corrections by trigger or replacement."""
+    entries = parse_entries()
+    term_lower = term.lower()
+    matches = [
+        e
+        for e in entries
+        if term_lower in e["trigger"].lower() or term_lower in e["replace"].lower()
+    ]
+
+    if not matches:
+        print(f'No corrections matching "{term}"')
+        return
+
+    max_trigger = max(len(e["trigger"]) for e in matches)
+    for entry in matches:
+        print(f"{entry['trigger']:<{max_trigger + 2}} -> {entry['replace']}")
+    print(f"\n{len(matches)} match(es)")
+
+
+def cmd_import(csv_file):
+    """Import corrections from a CSV file (wrong,correct per line)."""
+    if not os.path.exists(csv_file):
+        print(f"File not found: {csv_file}")
+        sys.exit(1)
+
+    entries = parse_entries()
+    existing_triggers = {e["trigger"].lower() for e in entries}
+    added = 0
+    updated = 0
+
+    with open(csv_file, "r") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if len(row) < 2:
+                continue
+            wrong, correct = row[0].strip(), row[1].strip()
+            if not wrong or not correct:
+                continue
+
+            if wrong.lower() in existing_triggers:
+                for e in entries:
+                    if e["trigger"].lower() == wrong.lower():
+                        e["replace"] = correct
+                        updated += 1
+                        break
+            else:
+                entries.append({"trigger": wrong, "replace": correct})
+                existing_triggers.add(wrong.lower())
+                added += 1
+
+    write_entries(entries)
+    print(f"Imported: {added} added, {updated} updated")
+    print(f"Total corrections: {len(entries)}")
+    restart_espanso()
+
+
+def cmd_export(csv_file=None):
+    """Export corrections to CSV."""
+    entries = parse_entries()
+    if not entries:
+        print("No corrections to export.")
+        return
+
+    if csv_file:
+        with open(csv_file, "w", newline="") as f:
+            writer = csv.writer(f)
+            for entry in sorted(entries, key=lambda e: e["trigger"].lower()):
+                writer.writerow([entry["trigger"], entry["replace"]])
+        print(f"Exported {len(entries)} corrections to {csv_file}")
+    else:
+        for entry in sorted(entries, key=lambda e: e["trigger"].lower()):
+            print(f"{entry['trigger']},{entry['replace']}")
+
+
+def cmd_test(text):
+    """Preview how corrections would be applied to text."""
+    entries = parse_entries()
+    corrected = text
+    changes = []
+
+    for entry in entries:
+        pattern = re.compile(
+            r"\b" + re.escape(entry["trigger"]) + r"\b", re.IGNORECASE
+        )
+        if pattern.search(corrected):
+            corrected = pattern.sub(entry["replace"], corrected)
+            changes.append(f"  {entry['trigger']} -> {entry['replace']}")
+
+    if changes:
+        print(f"Original:  {text}")
+        print(f"Corrected: {corrected}")
+        print(f"\nApplied {len(changes)} correction(s):")
+        for c in changes:
+            print(c)
+    else:
+        print("No corrections matched.")
+
+
+def cmd_help():
+    """Print help information."""
+    print(__doc__.strip())
+    print(f"\nVersion: {VERSION}")
+
+
+def main():
+    if len(sys.argv) < 2:
+        cmd_help()
+        sys.exit(1)
+
+    command = sys.argv[1].lower()
+
+    if command == "add":
+        if len(sys.argv) != 4:
+            print('Usage: dictfix add <wrong> <correct>')
+            sys.exit(1)
+        cmd_add(sys.argv[2], sys.argv[3])
+
+    elif command in ("remove", "rm"):
+        if len(sys.argv) != 3:
+            print("Usage: dictfix remove <wrong>")
+            sys.exit(1)
+        cmd_remove(sys.argv[2])
+
+    elif command in ("list", "ls"):
+        cmd_list()
+
+    elif command in ("search", "find"):
+        if len(sys.argv) != 3:
+            print('Usage: dictfix search <term>')
+            sys.exit(1)
+        cmd_search(sys.argv[2])
+
+    elif command == "import":
+        if len(sys.argv) != 3:
+            print("Usage: dictfix import <csv_file>")
+            sys.exit(1)
+        cmd_import(sys.argv[2])
+
+    elif command == "export":
+        csv_file = sys.argv[2] if len(sys.argv) > 2 else None
+        cmd_export(csv_file)
+
+    elif command == "test":
+        if len(sys.argv) < 3:
+            print('Usage: dictfix test <text>')
+            sys.exit(1)
+        cmd_test(" ".join(sys.argv[2:]))
+
+    elif command in ("help", "--help", "-h"):
+        cmd_help()
+
+    elif command in ("--version", "-v"):
+        print(f"dictfix {VERSION}")
+
+    else:
+        print(f"Unknown command: {command}")
+        cmd_help()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
