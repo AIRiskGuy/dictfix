@@ -5,6 +5,20 @@ All notable changes to dictfix will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-26
+
+### Added
+- Interactive `install.sh` with prompts for dependency installation and service registration
+- Espanso auto-start on reboot via service registration prompt during install
+- Espanso config directory auto-creation during install
+- Troubleshooting section in README covering common issues and bug reporting
+- PATH check during install with guidance if `~/bin` is not in PATH
+
+### Changed
+- Installation section in README rewritten to reflect interactive installer flow
+- `install.sh` now checks for Homebrew, Python 3, and espanso before proceeding
+- Version bump to 1.3.0
+
 ## [1.2.0] - 2026-03-26
 
 ### Added

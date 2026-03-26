@@ -1,33 +1,46 @@
-# Release Notes — dictfix v1.2.0
+# Release Notes — dictfix v1.3.0
 
 **Release date:** 2026-03-26
 
 ## What's New
 
-### `dictfix doctor` command
+### Interactive installer
 
-New diagnostic command that checks your macOS system settings for optimal dictation accuracy:
+`./install.sh` now guides you through the complete setup with interactive prompts:
 
-```bash
-dfx doctor
+```
+────────────────────────────────────────
+  dictfix installer
+────────────────────────────────────────
+
+Step 1: Dependencies
+  [OK] Homebrew found
+  [OK] Python 3 found
+  Install espanso (required dependency)? [Y/n]
+
+Step 2: Install dictfix CLI
+  [OK] Installed: ~/bin/dictfix -> ./dictfix
+
+Step 3: Service registration
+  Register espanso as a login service (auto-start on reboot)? [Y/n]
+  [OK] Service registered
+  Start espanso now? [Y/n]
 ```
 
-Checks performed:
-- macOS version (13+ required for on-device dictation)
-- Apple Silicon detection (enables on-device ML processing)
-- Dictation enabled status
-- System locale / language configuration
-- Microphone input volume (flags if below 70%)
-- espanso running status
-- Corrections file and count
-- Accessibility and Input Monitoring permissions for espanso
+### Auto-start on reboot
 
-Each check reports `[OK]`, `[!!]` (issue with fix instructions), or `[..]` (informational). Includes tips for reducing dictation errors at the OS level.
+The installer now prompts to register espanso as a macOS login service. Once registered, espanso starts automatically after reboot — no manual intervention needed. dictfix itself is a CLI tool and does not need a service.
 
-### Improved documentation
+### Troubleshooting guide
 
-- "Improving Dictation Accuracy" section added to README with OS-level tips
-- Removed user-specific paths from CLAUDE.md for public repo compatibility
+New README section covering:
+- Checking if espanso is installed and running
+- Verifying auto-start registration
+- Fixing corrections that aren't being applied
+- Recovering after macOS updates revoke permissions
+- Handling antivirus false positives
+- Resolving the `dfx` alias not loading
+- How to report bugs
 
 ## Upgrade
 
@@ -36,7 +49,11 @@ cd /path/to/dictfix
 git pull
 ```
 
-The symlink picks up changes automatically.
+To re-run the installer (safe to run multiple times):
+
+```bash
+./install.sh
+```
 
 ## Full Changelog
 

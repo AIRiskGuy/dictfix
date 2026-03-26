@@ -105,26 +105,29 @@ dfx test "I wanna push this to get hub"
 
 ## Installation
 
-### Prerequisites
-
-```bash
-brew install espanso
-```
-
-Grant macOS permissions when prompted:
-
-- **System Settings > Privacy & Security > Accessibility** — enable Espanso
-- **System Settings > Privacy & Security > Input Monitoring** — enable Espanso
-
-### Install dictfix
-
 ```bash
 git clone https://github.com/crankd/dictfix.git
 cd dictfix
 ./install.sh
 ```
 
-This symlinks the `dictfix` script to `~/bin/dictfix`. Ensure `~/bin` is in your `PATH`.
+The installer walks you through each step interactively:
+
+1. **Dependencies** — checks for Homebrew and Python 3, prompts to install espanso if missing
+2. **dictfix CLI** — symlinks the script to `~/bin/dictfix`
+3. **Service registration** — prompts to register espanso as a login service (auto-starts on reboot) and optionally starts it immediately
+4. **Espanso config** — creates the espanso config directory if it doesn't exist
+
+After installation, grant macOS permissions when prompted:
+
+- **System Settings > Privacy & Security > Accessibility** — enable Espanso
+- **System Settings > Privacy & Security > Input Monitoring** — enable Espanso
+
+Then verify your setup:
+
+```bash
+dictfix doctor
+```
 
 ## Improving Dictation Accuracy
 
@@ -181,6 +184,87 @@ dictfix itself is a local Python script with no network activity. Its dependency
 | macOS permissions | Accessibility + Input Monitoring (standard for text expanders) |
 
 **Summary**: All correction data stays on your machine. Espanso is open-source, has no telemetry, does not log keystrokes, and has no known vulnerabilities. The primary trust decision is granting Accessibility and Input Monitoring permissions, which is inherent to any text expander. The source code is fully auditable at [github.com/espanso/espanso](https://github.com/espanso/espanso).
+
+## Troubleshooting
+
+### Is espanso installed?
+
+```bash
+brew list --cask espanso
+```
+
+If not installed: `brew install espanso`
+
+### Is the service running?
+
+```bash
+espanso status
+```
+
+If not running:
+
+```bash
+espanso start
+```
+
+If espanso won't start, it likely needs macOS permissions:
+
+1. Open **System Settings > Privacy & Security > Accessibility** — enable Espanso
+2. Open **System Settings > Privacy & Security > Input Monitoring** — enable Espanso
+3. Try `espanso start` again
+
+### Does espanso auto-start on reboot?
+
+Check if the LaunchAgent exists:
+
+```bash
+ls ~/Library/LaunchAgents/com.federicoterzi.espanso.plist
+```
+
+If missing, register it:
+
+```bash
+espanso service register
+```
+
+### Corrections aren't being applied
+
+1. Verify espanso is running: `espanso status`
+2. Verify your corrections exist: `dictfix ls`
+3. Check if Secure Input is active (blocks espanso in password fields — this is expected)
+4. Some apps may need a restart to recognize espanso
+5. Run `dictfix doctor` for a full diagnostic
+
+### espanso was working but stopped
+
+This can happen after a macOS update revokes permissions. Re-grant:
+
+1. **System Settings > Privacy & Security > Accessibility** — remove and re-add Espanso
+2. **System Settings > Privacy & Security > Input Monitoring** — remove and re-add Espanso
+3. Run `espanso restart`
+
+### Antivirus flags espanso
+
+Some antivirus software (e.g., Bitdefender) flags espanso as suspicious because text expanders use keylogger-like techniques for keystroke detection. This is a **false positive**. Espanso is open-source, has zero telemetry, and does not log keystrokes. Add it to your antivirus allowlist.
+
+### The `dfx` alias doesn't work
+
+The alias must be loaded in your shell session. Either:
+
+- Open a new terminal tab/window
+- Run `source ~/.zshrc` (or your shell profile)
+- Verify the alias exists: `grep dfx ~/.zshrc`
+
+You can always use the full `dictfix` command directly.
+
+### Reporting a bug
+
+File an issue at [github.com/crankd/dictfix/issues](https://github.com/crankd/dictfix/issues) with:
+
+- Output of `dictfix doctor`
+- Output of `dictfix --version`
+- macOS version (`sw_vers`)
+- Description of the problem and steps to reproduce
 
 ## License
 
