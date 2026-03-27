@@ -4,7 +4,11 @@ CLI tool for managing macOS dictation (speech-to-text) corrections, powered by [
 
 ## Problem
 
-macOS dictation frequently transcribes words incorrectly — especially with regional accents, technical vocabulary, or brand names. Built-in Text Replacements don't work reliably in Terminal or VS Code because the correction event fires too late. `dictfix`, a CLI tool, solves this by managing an [espanso](https://espanso.org) correction list that replaces misunderstood words and phrases the instant they appear, in any app on the system.
+As a developer and technical professional, I frequently use speech-to-text transcription when using Claude Code, Terminal, VS Code, etc. The macOS dictation frequently transcribes words incorrectly — especially with regional accents, technical vocabulary, or brand names. Built-in Text Replacements don't work reliably in Terminal or VS Code because the correction event fires too late.
+
+## Solution
+
+`dictfix` is a CLI tool that solves this by managing an [espanso](https://espanso.org) correction list that replaces misunderstood words and phrases the instant they appear in any app on the system. For developers or other pros who live in their terminal and prefer to use speech-to-text transcription, `dictfix` is a must-have tool.
 
 ## Usage
 
@@ -12,6 +16,7 @@ macOS dictation frequently transcribes words incorrectly — especially with reg
 dictfix add <wrong> <correct>       # Add or update a correction
 dictfix remove <wrong>              # Remove a correction (alias: rm)
 dictfix list                        # List all corrections (alias: ls)
+dictfix ls <term>                   # Alias for dictfix list <term>
 dictfix search <term>               # Search corrections (alias: find)
 dictfix import <csv_file>           # Bulk import from CSV (wrong,correct per line)
 dictfix export [csv_file]           # Export to CSV (stdout if no file given)
@@ -23,10 +28,11 @@ dictfix --version                   # Show version
 
 ### Shorthand
 
-Add this alias to your shell profile for faster access:
+The install script prompted to add this alias to your preferred shell profile for faster access. If you did not add it during installation, you can add it manually by adding the following to your shell profile:
 
 ```bash
-alias dfx='dictfix'
+echo "alias dfx='dictfix'" >> ~/.zshrc # or ~/.bashrc, ~/.bash_profile, etc.
+source ~/.zshrc # or ~/.bashrc, ~/.bash_profile, etc.
 ```
 
 Then use `dfx` anywhere you would use `dictfix`:
@@ -106,7 +112,7 @@ dfx test "I wanna push this to get hub"
 ## Installation
 
 ```bash
-git clone https://github.com/crankd/dictfix.git
+git clone https://github.com/AIRiskGuy/dictfix.git
 cd dictfix
 ./install.sh
 ```
@@ -259,7 +265,7 @@ You can always use the full `dictfix` command directly.
 
 ### Reporting a bug
 
-File an issue at [github.com/crankd/dictfix/issues](https://github.com/crankd/dictfix/issues) with:
+File an issue at [github.com/AIRiskGuy/dictfix/issues](https://github.com/AIRiskGuy/dictfix/issues) with:
 
 - Output of `dictfix doctor`
 - Output of `dictfix --version`
@@ -274,11 +280,14 @@ Contributions are welcome! Here's the process:
 
 1. Fork the repo on GitHub
 2. Clone your fork locally:
+
    ```bash
    git clone https://github.com/<your-username>/dictfix.git
    cd dictfix
    ```
+
 3. Create a feature branch from `dev`:
+
    ```bash
    git checkout dev
    git checkout -b feat/your-feature-name
@@ -295,20 +304,25 @@ Contributions are welcome! Here's the process:
 ### Submitting changes
 
 1. Test your changes locally:
+
    ```bash
    dictfix doctor          # verify setup
    dictfix add "test" "ok" # test mutations
    dictfix ls              # verify
    dictfix rm "test"       # clean up
    ```
+
 2. Commit with a clear message describing the "why":
+
    ```bash
    git commit -m "Add support for regex triggers
 
    Allows users to define pattern-based corrections for common
    dictation errors that vary slightly each time."
    ```
+
 3. Push your branch and open a PR against `dev`:
+
    ```bash
    git push origin feat/your-feature-name
    gh pr create --base dev
@@ -324,7 +338,7 @@ Contributions are welcome! Here's the process:
 
 ### Reporting bugs
 
-File an issue at [github.com/crankd/dictfix/issues](https://github.com/crankd/dictfix/issues) with:
+File an issue at [github.com/AIRiskGuy/dictfix/issues](https://github.com/AIRiskGuy/dictfix/issues) with:
 
 - Output of `dictfix doctor`
 - Output of `dictfix --version`
@@ -338,6 +352,13 @@ File an issue at [github.com/crankd/dictfix/issues](https://github.com/crankd/di
 - `dictfix undo` to revert the last add/remove
 - Regex-based trigger patterns
 - Community-maintained correction packs (e.g., medical terms, legal terms)
+
+## Feedback
+
+Enjoying this free tool? Have an improvement suggestion? Drop me a note on social media.
+
+- [YouTube.com/@AIRiskGuy](https://www.youtube.com/@AIRiskGuy)
+- [GitHub](https://github.com/AIRiskGuy)
 
 ## License
 

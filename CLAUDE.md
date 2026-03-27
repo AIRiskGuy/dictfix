@@ -15,7 +15,7 @@ CLI tool for managing macOS dictation/speech-to-text corrections via espanso.
 
 - Source: `./dictfix` (project root)
 - Install: `./install.sh` (symlinks to `~/bin/dictfix`)
-- Repo: <https://github.com/crankd/dictfix>
+- Repo: <https://github.com/AIRiskGuy/dictfix>
 
 ## Key Rules
 
